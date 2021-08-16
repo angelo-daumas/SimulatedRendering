@@ -15,7 +15,6 @@ class Polygon(Primitive):
         self.vertices = points
         xs, ys = (sorted(dim) for dim in zip(*points))
         self.boundingBox = BoundingBox(xs[0], ys[0], xs[-1], ys[-1])
-        print(self.boundingBox.minX, self.boundingBox.minY, self.boundingBox.maxX, self.boundingBox.maxY)
 
 
     def edges(self):

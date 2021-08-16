@@ -1,5 +1,6 @@
 from typing import Any, Dict, TypeVar, Type
 from linealg import AffineTransform, PointLike
+import colorspaces
 import abc
 
 T = TypeVar('T')
@@ -48,7 +49,8 @@ class Primitive(abc.ABC):
         boundingBox (BoundingBox): The bounding rectangle which contains the entire shape.
     """
 
-    boundingBox:BoundingBox 
+    boundingBox:BoundingBox
+    color:colorspaces.RGB
 
     @abc.abstractmethod
     def contains(self, point:PointLike) -> bool:
