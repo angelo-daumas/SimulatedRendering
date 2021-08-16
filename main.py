@@ -1,71 +1,51 @@
-from primitives.primitives import Primitive
-from primitives.polygon import ConvexPolygon
-import numpy as np
-from numpy.typing import NDArray
-
 import json
-
-from typing import Sequence, Any, Dict, List, Type
-import primitives
-
-from primitives import Circle, Polygon, ConvexPolygon
-class Screen:
-    ''' Creates a virtual basic screen
-
-    Args:
-        gdata (dict): dictionary containing screen size and scene description
-    '''
-    _width:int
-    _height:int
-    _scene:Sequence[primitives.Primitive]
-    _image:NDArray[np.uint8]
-
-    def __init__(self, gdata:Dict[str, Any]):
-        self._width = int(gdata["width"])
-        self._height = int(gdata["height"])
-        self._scene = self.parse_primitives(gdata["scene"])
-
-        # Create white image with R, G, B channels
-        self._image = 255 *  np.ones((self._height, self._width, 3), np.uint8) #type: ignore
-
-
-    def parse_primitives(self, scene:Sequence[Dict[str, Any]]) -> List[primitives.Primitive]:
-        ''' 
-        '''
-        preprop_scene:List[Any] = []
-
-        for primitive in scene:
-            primitive_type:Type[Primitive] = {
-                "circle":Circle, 
-                "polygon":Polygon, 
-                "triangle":ConvexPolygon
-                }[primitive["shape"]]
-            shape = primitive_type.from_dict(primitive)
-            shape.color = primitive["color"]
-            preprop_scene.append(shape)
-
-        return preprop_scene
-        
-    def rasterize(self) -> None:
-        ''' Rasterize the primitives along the Screen    
-        '''
-        for primitive in self._scene:
-            for w,h in primitive.boundingBox.pixels():
-                if primitive.contains((w+0.5, h+0.5)):  # add 0.5 to get the pixel's  center
-                    im_x, im_y = w, self._height - (h + 1)
-                    self._image[im_y, im_x] = primitive.color
-
-
-with open('tests/lion.json') as f:
-    data = json.load(f)
-
-# data = {"width": 200, "height": 600, "scene": [Circle((100,300), 10.), ConvexPolygon([(50,50),(100,50),(100,100), (50,75)])]}
-
-screen = Screen(data)
 import time
 from PIL import Image
-start = time.process_time()
-screen.rasterize()
-end = time.process_time()
-print(f"Finished rasterizing. Took {end-start} seconds.")
-img = Image.fromarray(screen._image).show()
+from rasterspace import RasterSpace
+import os
+
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+
+class Tags:
+    SYS = bcolors.OKGREEN + "[SYSTEM]" + bcolors.ENDC
+    ERR = bcolors.FAIL + "[ERROR]" + bcolors.ENDC
+    IN = bcolors.OKBLUE + "[{}?]" + bcolors.ENDC + " "
+
+def do_file(filename:str):
+    with open(f'tests/{filename}.json') as f:
+        data = json.load(f)
+
+        screen = RasterSpace(data)
+        
+        start = time.process_time()
+        screen.rasterize()
+        end = time.process_time()
+        print(f'{Tags.SYS} Finished rasterizing "{filename}"". Took {end-start} seconds.')
+
+        return Image.fromarray(screen.image)  # type: ignore
+
+def main():
+    while True:
+        filename = input(f'{Tags.SYS} Please type in the name of a file in the "tests" folder to generate an image. Type /all to generate all images. Press enter to continue. \n{Tags.IN.format("file name")}')
+
+        if not filename:
+            break
+        elif filename == "/all":
+            for filename in os.listdir('tests/'):
+                do_file(filename).save(f'output/{filename}.png')
+            break
+        else:
+            try:
+                do_file(filename).show()
+            except:
+                print(f"{Tags.ERR} Unable to process file. Please try again, or use another filename.")
+        
+
+if __name__ == "__main__":
+    main()

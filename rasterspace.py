@@ -1,37 +1,50 @@
-from typing import TypeVar, Generic
+from typing import Sequence, Any, Dict, List, Type
 import numpy as np
+from numpy.typing import NDArray
+from primitives import Primitive, Circle, Polygon, ConvexPolygon
 
-T = TypeVar('T')
+class RasterSpace:
+    ''' Creates a virtual basic screen
 
-class RasterSpace(Generic[T]):
-    __slots__ = ('__width', '__height', '__background', '__image')
+    Args:
+        gdata (dict): dictionary containing screen size and scene description
+    '''
+    _width:int
+    _height:int
+    _scene:Sequence[Primitive]
+    image:NDArray[np.uint8]
 
-    def __init__(self, width:int, height:int, background:T):
-        self.__width = width
-        self.__height = height
-        self.__background = background
-        self.__image = np.array(background, np.uint8) * np.ones((height, width, len(background)), np.uint8)  #type: ignore
+    def __init__(self, gdata:Dict[str, Any]):
+        self._width = int(gdata["width"])
+        self._height = int(gdata["height"])
+        self._scene = self.parse_primitives(gdata["scene"])
 
-    @property
-    def width(self) -> int:
-        return self.__width
-
-    @property
-    def height(self) -> int:
-        return self.__height
-
-    @property
-    def background(self) -> T:
-        return self.__background
-
-    def __getitem__(self, x:int, y:int) -> T:
-        return self.__image[x, y] # type: ignore
-
-    def __setitem__(self, x:int, y:int, v:T) -> None:
-        self.__image[x,y] = v  # type: ignore
+        # Create white image with R, G, B channels
+        self.image = 255 *  np.ones((self._height, self._width, 3), np.uint8) #type: ignore
 
 
-from PIL import Image
-import colorspaces
-white = colorspaces.RGB(255, 255, 255)
-a = Image.fromarray(RasterSpace[colorspaces.RGB](200, 600, white)._RasterSpace__image) # type: ignore
+    def parse_primitives(self, scene:Sequence[Dict[str, Any]]) -> List[Primitive]:
+        ''' 
+        '''
+        preprop_scene:List[Any] = []
+
+        for primitive in scene:
+            primitive_type:Type[Primitive] = {
+                "circle":Circle, 
+                "polygon":Polygon, 
+                "triangle":Polygon
+                }[primitive["shape"]]
+            shape = primitive_type.from_dict(primitive)
+            shape.color = primitive["color"]
+            preprop_scene.append(shape)
+
+        return preprop_scene
+        
+    def rasterize(self) -> None:
+        ''' Rasterize the primitives along the Screen    
+        '''
+        for primitive in self._scene:
+            for w,h in primitive.boundingBox.pixels():
+                if primitive.contains((w+0.5, h+0.5)):  # add 0.5 to get the pixel's  center
+                    im_x, im_y = w, self._height - (h + 1)
+                    self.image[im_y, im_x] = primitive.color
