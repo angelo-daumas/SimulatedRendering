@@ -37,6 +37,9 @@ class BoundingBox:
         for x in range(int(self.minX), 1+int(self.maxX)):
             yield from ((x,y) for y in range(int(self.minY), 1+int(self.maxY)))
 
+    def contains(self, point:PointLike):
+        return self.minX <= point[0] <= self.maxX and self.minY <= point[1] <= self.maxY
+
 class Primitive(abc.ABC):
     """
     An abstract class that represents a primitive shape in 2D space.

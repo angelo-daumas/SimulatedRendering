@@ -1,11 +1,39 @@
 import numpy as np
 from numpy.typing import NDArray
-from typing import Tuple, Union, Any, Optional, Sequence
+from typing import Tuple, Union, Any, Optional, Sequence, NamedTuple
+from enum import IntEnum
 
 Matrix = NDArray[np.float64]
 ArrayPoint = NDArray[np.float64]
+Vector = NDArray[np.float64]
 PointLike = Union[ArrayPoint, Tuple[float,float]]
 
+class LineSegment(NamedTuple):
+    start: PointLike
+    end: PointLike
+
+    class Side(IntEnum):
+        """
+        An enum for use if LineSegment.orient().
+
+        LEFT: Point is to the left of the LineSegment.
+        RIGHT: Point is to the right of the LineSegment.
+        COLLINEAR: Point is in the same line as the LineSegment.
+        """
+        LEFT = -1
+        COLLINEAR = 0
+        RIGHT = 1
+
+    def vector(self) -> Vector:
+        return np.subtract(self.start, self.end)
+
+    def orient(self, point:PointLike) -> Side:
+        vector = np.subtract(point, self.start)
+        return LineSegment.Side(np.sign(np.cross(self.vector(), vector)))  # type: ignore
+
+    def bounds(self) -> Tuple[float,float,float,float]:
+        xs, ys = zip(*self)
+        return min(xs), min(ys), max(xs), max(ys)
 
 class AffineTransform:
     """
@@ -32,12 +60,12 @@ def normalize(vector:Sequence[Any], dtype:Optional[type]=None) -> ArrayPoint:
     """Normalizes a vector, returning a unit vector."""
     return np.array(vector, dtype=dtype)/(np.linalg.norm(vector)) #type: ignore
 
-def lineRayIntersectionPoint(rayOrigin:PointLike, rayDirection:PointLike, point1:PointLike, point2:PointLike) -> Union[ArrayPoint, bool]:
+def lineRayIntersectionPoint(rayOrigin:PointLike, rayDirection:PointLike, segment:LineSegment) -> Union[ArrayPoint, bool]:
     # Convert to numpy arrays
     rayOrigin = np.array(rayOrigin, dtype=np.float64) # type: ignore
     rayDirection = normalize(rayDirection, dtype=np.float64) # type: ignore
-    point1 = np.array(point1, dtype=np.float64) # type: ignore
-    point2 = np.array(point2, dtype=np.float64) # type: ignore
+    point1 = np.array(segment.start, dtype=np.float64) # type: ignore
+    point2 = np.array(segment.end, dtype=np.float64) # type: ignore
 
     # Ray-Line Segment Intersection Test in 2D
     # http://bit.ly/1CoxdrG

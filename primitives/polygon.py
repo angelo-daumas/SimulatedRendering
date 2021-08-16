@@ -1,7 +1,7 @@
 import numpy as np
 from .primitives import Primitive, BoundingBox
 from typing import Set, Sequence, Dict, Any
-from linealg import PointLike, lineRayIntersectionPoint
+from linealg import PointLike, lineRayIntersectionPoint, LineSegment
 
 class Polygon(Primitive):
     """
@@ -13,21 +13,21 @@ class Polygon(Primitive):
 
     def __init__(self, points:Sequence[PointLike]):
         self.vertices = points
-        xs, ys = zip(*points)
-        self.boundingBox = BoundingBox(min(xs), min(ys), max(xs), max(ys))
+        xs, ys = (sorted(dim) for dim in zip(*points))
+        self.boundingBox = BoundingBox(xs[0], ys[0], xs[-1], ys[-1])
         print(self.boundingBox.minX, self.boundingBox.minY, self.boundingBox.maxX, self.boundingBox.maxY)
 
 
     def edges(self):
-        """Returns a generator that yields all the edges of this polygon, as a tuple of two points."""
+        """Returns a generator that yields all the edges of this polygon."""
         num_verts = len(self.vertices)
         for i,vert in enumerate(self.vertices):
-            yield vert, self.vertices[(i+1)%num_verts]
+            yield LineSegment(vert, self.vertices[(i+1)%num_verts])
 
     def contains(self, point:PointLike) -> bool:
         intersects:Set[PointLike] = set()  # use a set to detect collisions with multiple edges (i.e for collisions at the vertices of the polygon)
         for edge in self.edges():
-            intersect = lineRayIntersectionPoint(point, (1.,1.), edge[0], edge[1])
+            intersect = lineRayIntersectionPoint(point, (1.,1.), edge)
             if type(intersect) is bool:
                 if intersect:
                     return True
@@ -42,3 +42,22 @@ class Polygon(Primitive):
     @classmethod
     def from_dict(cls, params:Dict[str,Any]):
         return cls(params["vertices"])
+
+class ConvexPolygon(Polygon):
+    # There is no need for a triangle-specific implementation, as this is already just as fast.
+
+    def contains(self, point:PointLike) -> bool:
+        # Equivalent to cross-product check for the triangle, but generalized to N-sided convex polygons.
+        edges = self.edges()
+        edge = next(edges)
+        orient = edge.orient(point)
+        if orient is LineSegment.Side.COLLINEAR:
+                return BoundingBox(*edge.bounds()).contains(point)
+
+        for edge in edges:
+            o = edge.orient(point)
+
+            if o != orient:
+                return o is LineSegment.Side.COLLINEAR and BoundingBox(*edge.bounds()).contains(point)
+
+        return True
