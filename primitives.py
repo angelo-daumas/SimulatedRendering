@@ -1,45 +1,74 @@
 import numpy as np
-from typing import Sequence, Any, Optional, Union, Generator, Tuple, Set
-from numpy.typing import NDArray
+from typing import Sequence, Generator, Tuple, Set, Any, Dict, TypeVar, Type
+from linealg import AffineTransform, PointLike, ArrayPoint, lineRayIntersectionPoint
+import abc
 
-#ArrayPoint = np.ndarray[Any, np.dtype[np.float64]]
-ArrayPoint = NDArray[np.float64]
-Matrix = NDArray[np.float64]
-PointLike = Union[ArrayPoint, Tuple[float,float]]
-
+T = TypeVar('T')
 
 class BoundingBox:
+    """
+    A class that represents a 2D bounding box (a rectangle whose sides are parallel to (1,0) and (0,1)).
+    
+    Attributes:
+        minX (float): The minimum X coordinate of the bounding box.
+        minY (float): The minimum Y coordinate of the bounding box.
+        maxX (float): The maximum X coordinate of the bounding box.
+        maxY (float): The maximum Y coordinate of the bounding box.
+    """
 
     def __init__(self, minX:float = 0., minY:float=0., maxX:float=0., maxY:float=0.):
+        """Initializes the BoundingBox with each respective attribute."""
         self.minX = minX
         self.maxX = maxX
         self.minY = minY
         self.maxY = maxY
 
-    def transform(self, matrix:Matrix):
-        matrix
-        pass
+    def transform(self, matrix:AffineTransform):
+        """Transforms this bounding box using an affine transformation, then sets it to the bounding rectangle of this transformed shape."""
+        verts = [(self.minX, self.minY), (self.minX, self.maxY), (self.maxX, self.maxY), (self.maxX, self.minY)]
+        verts = (matrix.apply(v) for v in verts)
+        xs, ys = zip(*verts)
+        self.minX = min(xs)
+        self.maxX = max(xs)
+        self.minY = min(ys)
+        self.maxY = max(ys)
 
-    def getPixels(self):
+    def pixels(self):
+        """Returns a generator that iterates over all pixels contained withing the bounding box (including pixels at the edges)."""
         for x in range(int(self.minX), 1+int(self.maxX)):
             yield from ((x,y) for y in range(int(self.minY), 1+int(self.maxY)))
 
-class Primitive:
+class Primitive(abc.ABC):
+    """
+    An abstract class that represents a primitive shape in 2D space.
+    
+    Attributes:
+        boundingBox (BoundingBox): The bounding rectangle which contains the entire shape.
+    """
 
+    boundingBox:BoundingBox 
 
-    def contains(self, point:PointLike):
-        point
-        return False
+    @abc.abstractmethod
+    def contains(self, point:PointLike) -> bool:
+        """Returns whether this shape contains a given point in 2D space."""
+        raise NotImplementedError()
 
-    @property
-    def boundingBox(self):
-        return None
+    @abc.abstractmethod
+    @classmethod
+    def from_dict(cls: Type[T], params:Dict[str,Any]) -> T:
+        """Returns an object of this class, initialized using the fields of a dict."""
+        raise NotImplementedError()
 
-
-class Circle:
+class Circle(Primitive):
+    """
+    A Primitive that represents a circle.
+    
+    Attributes:
+        center (ArrayPoint): The center of the circle in 2D space.
+        radius (float): The radius of the circle.
+    """
     center:ArrayPoint
     radius:float
-    boundingBox:BoundingBox
 
     def __init__(self, center:PointLike, radius:float):
         self.center = np.array(center)  # type: ignore
@@ -51,7 +80,17 @@ class Circle:
         # print(point - self.center, np.linalg.norm(point - self.center))
         return np.linalg.norm(point - self.center) <= self.radius # type: ignore
 
+    @classmethod
+    def from_dict(cls, params:Dict[str,Any]):
+        return cls(params["center"], params["radius"])
+
 class Polygon:
+    """
+    A Primitive that represents a polygon.
+    
+    Attributes:
+        vertices (Sequence[PointLike]): The list of vertices that defines this polygon.
+    """
 
     def __init__(self, points:Sequence[PointLike]):
         self.vertices = points
@@ -61,6 +100,7 @@ class Polygon:
 
 
     def edges(self) -> Generator[Tuple[PointLike, PointLike], None, None]:
+        """Returns a generator that yields all the edges of this polygon, as a tuple of two points."""
         num_verts = len(self.vertices)
         for i,vert in enumerate(self.vertices):
             yield vert, self.vertices[(i+1)%num_verts]
@@ -80,32 +120,3 @@ class Polygon:
 
         return len(intersects)%2 == 1
             
-            
-
-
-
-def normamlize(vector:Sequence[Any], dtype:Optional[type]=None) -> ArrayPoint:
-   return np.array(vector, dtype=dtype)/(np.linalg.norm(vector)) #type: ignore
-
-def lineRayIntersectionPoint(rayOrigin:PointLike, rayDirection:PointLike, point1:PointLike, point2:PointLike) -> Union[ArrayPoint, bool]:
-    # Convert to numpy arrays
-    rayOrigin = np.array(rayOrigin, dtype=np.float64) # type: ignore
-    rayDirection = normamlize(rayDirection, dtype=np.float64) # type: ignore
-    point1 = np.array(point1, dtype=np.float64) # type: ignore
-    point2 = np.array(point2, dtype=np.float64) # type: ignore
-
-    # Ray-Line Segment Intersection Test in 2D
-    # http://bit.ly/1CoxdrG
-    v1 = rayOrigin - point1
-    v2 = point2 - point1
-    v3 = np.array([-rayDirection[1], rayDirection[0]])  #type: ignore
-    
-    if np.cross(v2, rayDirection-rayOrigin) == 0.: #type: ignore
-        return True
-
-    t1 =  np.cross(v2, v1)/ np.dot(v2, v3) #type: ignore
-    t2 = np.dot(v1, v3) / np.dot(v2, v3) #type: ignore
-
-    if t1 >= 0.0 and t2 >= 0.0 and t2 <= 1.0:
-        return rayOrigin + t1 * rayDirection #type: ignore
-    return False

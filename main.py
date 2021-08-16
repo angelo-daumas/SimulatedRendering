@@ -6,7 +6,9 @@ from matplotlib import patheffects
 import matplotlib.pyplot as plt
 import json
 
-from typing import Sequence, Any, Dict
+from typing import Sequence, Any, Dict, cast
+from numbers import Number
+import primitives
 
 def inside(x, y, primitive):
   """
@@ -32,20 +34,19 @@ class Screen:
     '''
     _width:int
     _height:int
-    _scene:Sequence[Any]
-    _image:NDArray[Any]
+    _scene:Sequence[primitives.Primitive]
+    _image:NDArray[np.uint8]
 
-    def __init__(self, gdata:Dict[Any, Any]):
-        self._width = gdata.get("width")  # type: ignore
-        self._height = gdata.get("height")  # type: ignore
-        self._scene = self.preprocess( gdata.get("scene") ) # type: ignore
+    def __init__(self, gdata:Dict[str, Any]):
+        self._width = int(gdata["width"])
+        self._height = int(gdata["height"])
+        self._scene = self.preprocess( cast(Sequence[Any], gdata.get("scene") ) )
 
         # Create white image with R, G, B channels
         self._image = 255 *  np.ones((self._height, self._width, 3), np.uint8) #type: ignore
-        self.create_image()
 
 
-    def preprocess(self, scene:Sequence[Any]) -> Sequence[Any]:
+    def preprocess(self, scene:Sequence[Any]) -> Sequence[primitives.Primitive]:
         ''' 
         '''
         preprop_scene:Sequence[Any] = []
@@ -60,7 +61,7 @@ class Screen:
         '''
 
         for primitive in self._scene:
-            for w,h in primitive.boundingBox.getPixels():
+            for w,h in primitive.boundingBox.pixels():
                 if primitive.contains((w+0.5, h+0.5)):  # add 0.5 to get the pixel's  center
                     im_x, im_y = w, self._height - (h + 1)
                     self._image[im_y, im_x] = (255, 0, 0)
