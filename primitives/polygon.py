@@ -1,11 +1,10 @@
-import numpy as np
 from .primitives import Primitive, BoundingBox
-from typing import Set, Sequence, Dict, Any
-from linealg import PointLike, lineRayIntersectionPoint, LineSegment, AffineTransform
+from typing import Sequence, Dict, Any
+from linealg import PointLike, LineSegment, AffineTransform
 
 class Polygon(Primitive):
     """
-    A Primitive that represents a polygon.
+    A Primitive that represents a polygon. Uses the Winding Number method to check whether a point is contained within it.
     
     Attributes:
         vertices (Sequence[PointLike]): The list of vertices that defines this polygon.
@@ -24,20 +23,27 @@ class Polygon(Primitive):
             yield LineSegment(vert, self.vertices[(i+1)%num_verts])
 
     def contains(self, point:PointLike) -> bool:
-        intersects:Set[PointLike] = set()  # use a set to detect collisions with multiple edges (i.e for collisions at the vertices of the polygon)
-        for edge in self.edges():
-            intersect = lineRayIntersectionPoint(point, (1.,1.), edge)
-            if type(intersect) is bool:
-                if intersect:
-                    return True
-            else:
-                if np.array_equal(intersect, point):  # type: ignore
-                    return True
-                else:
-                    intersects.add(tuple(intersect))  #type: ignore
+        # Winding Number method
+        Y = point[1]
+        winding = 0
 
-        return len(intersects)%2 == 1
-    
+        for edge in self.edges():
+            orient = edge.orient(point)
+
+            if orient == edge.Side.COLLINEAR and BoundingBox(*edge.bounds()).contains(point):
+                return True
+
+            if edge.start[1] <= Y:
+                if edge.end[1] > Y:
+                    if orient == edge.Side.LEFT:
+                        winding += 1
+            else:
+                if edge.end[1] <= Y:
+                    if orient == edge.Side.RIGHT:
+                        winding -= 1
+        
+        return bool(winding)
+
     def transform(self, matrix: AffineTransform):
         self.boundingBox.transform(matrix)
         for i,vert in enumerate(self.vertices):
@@ -48,10 +54,11 @@ class Polygon(Primitive):
         return cls(params["vertices"])
 
 class ConvexPolygon(Polygon):
-    # There is no need for a triangle-specific implementation, as this is already just as fast.
-
+    """This Polygon represents a ConvexPolygon and uses a different method to check whether a point is contained within it."""
+    
     def contains(self, point:PointLike) -> bool:
         # Equivalent to cross-product check for the triangle, but generalized to N-sided convex polygons.
+        # There is no need for a triangle-specific implementation, as it would look exactly like this one.
         edges = self.edges()
         edge = next(edges)
         orient = edge.orient(point)

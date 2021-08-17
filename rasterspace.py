@@ -2,6 +2,7 @@ from typing import Sequence, Any, Dict, List, Type
 import numpy as np
 from numpy.typing import NDArray
 from primitives import Primitive, Circle, Polygon, ConvexPolygon
+from linealg import AffineTransform
 
 class RasterSpace:
     ''' Creates a virtual basic screen
@@ -32,10 +33,12 @@ class RasterSpace:
             primitive_type:Type[Primitive] = {
                 "circle":Circle, 
                 "polygon":Polygon, 
-                "triangle":Polygon
+                "triangle":ConvexPolygon
                 }[primitive["shape"]]
             shape = primitive_type.from_dict(primitive)
             shape.color = primitive["color"]
+            if "xform" in primitive:
+                shape.transform(AffineTransform(primitive["xform"]))
             preprop_scene.append(shape)
 
         return preprop_scene

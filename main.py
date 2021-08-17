@@ -27,7 +27,7 @@ def do_file(filename:str):
         start = time.process_time()
         screen.rasterize()
         end = time.process_time()
-        print(f'{Tags.SYS} Finished rasterizing "{filename}"". Took {end-start} seconds.')
+        print(f'{Tags.SYS} Finished rasterizing "{filename}". Took {end-start} seconds.')
 
         return Image.fromarray(screen.image)  # type: ignore
 
@@ -39,16 +39,17 @@ def main():
             break
         elif filename == "/all":
             for filename in os.listdir('tests/'):
-                do_file(filename).save(f'output/{filename}.png')
+                if filename.endswith('.json'):
+                    filename = filename[:filename.rfind(".")]
+                    print(f'{Tags.SYS} Rasterizing "{filename}"...')
+                    do_file(filename).save(f'outputs/{filename}.png')
             break
         else:
             try:
                 do_file(filename).show()
-            except Exception as e:
+            except Exception:
                 print(f"{Tags.ERR} Unable to process file. Please try again, or use another filename.")
                 traceback.print_exc()
-
-
 
 if __name__ == "__main__":
     main()
