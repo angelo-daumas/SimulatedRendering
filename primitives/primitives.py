@@ -18,20 +18,17 @@ class BoundingBox:
 
     def __init__(self, minX:float = 0., minY:float=0., maxX:float=0., maxY:float=0.):
         """Initializes the BoundingBox with each respective attribute."""
-        self.minX = minX
-        self.maxX = maxX
-        self.minY = minY
-        self.maxY = maxY
+        self.minX:float = minX
+        self.maxX:float = maxX
+        self.minY:float = minY
+        self.maxY:float = maxY
 
     def transform(self, matrix:AffineTransform):
         """Transforms this bounding box using an affine transformation, then sets it to the bounding rectangle of this transformed shape."""
         verts = [(self.minX, self.minY), (self.minX, self.maxY), (self.maxX, self.maxY), (self.maxX, self.minY)]
         verts = (matrix.apply(v) for v in verts)
-        xs, ys = zip(*verts)
-        self.minX = min(xs)
-        self.maxX = max(xs)
-        self.minY = min(ys)
-        self.maxY = max(ys)
+        xs, ys = (sorted(dim) for dim in zip(*verts))
+        self.minX, self.maxX, self.minY, self.maxY  =  xs[0], xs[-1], ys[0], ys[-1]
 
     def pixels(self):
         """Returns a generator that iterates over all pixels contained withing the bounding box (including pixels at the edges)."""
@@ -61,4 +58,9 @@ class Primitive(abc.ABC):
     @abc.abstractmethod
     def from_dict(cls: Type[T], params:Dict[str,Any]) -> T:
         """Returns an object of this class, initialized using the fields of a dict."""
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def transform(self, matrix:AffineTransform) -> None:
+        """Modifies this shape using an affine transformation."""
         raise NotImplementedError()

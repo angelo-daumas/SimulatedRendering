@@ -1,7 +1,7 @@
 import numpy as np
 from .primitives import Primitive, BoundingBox
 from typing import Set, Sequence, Dict, Any
-from linealg import PointLike, lineRayIntersectionPoint, LineSegment
+from linealg import PointLike, lineRayIntersectionPoint, LineSegment, AffineTransform
 
 class Polygon(Primitive):
     """
@@ -12,7 +12,7 @@ class Polygon(Primitive):
     """
 
     def __init__(self, points:Sequence[PointLike]):
-        self.vertices = points
+        self.vertices = list(points)
         xs, ys = (sorted(dim) for dim in zip(*points))
         self.boundingBox = BoundingBox(xs[0], ys[0], xs[-1], ys[-1])
 
@@ -38,6 +38,11 @@ class Polygon(Primitive):
 
         return len(intersects)%2 == 1
     
+    def transform(self, matrix: AffineTransform):
+        self.boundingBox.transform(matrix)
+        for i,vert in enumerate(self.vertices):
+            self.vertices[i] = matrix.apply(vert)
+
     @classmethod
     def from_dict(cls, params:Dict[str,Any]):
         return cls(params["vertices"])

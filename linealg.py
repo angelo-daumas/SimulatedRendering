@@ -48,12 +48,12 @@ class AffineTransform:
     matrix:Matrix
 
     def __init__(self, matrix:Matrix) -> None:
-        self.matrix = matrix
+        self.matrix = np.array(matrix)  # type: ignore
         pass
 
-    def apply(self, point:PointLike) -> ArrayPoint:
+    def apply(self, point:PointLike) -> PointLike:
         """Applies the transformation to a 2D point, and returns the resulting 2D point."""
-        return (self.matrix * [*point, 1.])[0:2]
+        return tuple((self.matrix @ [*point, 1.])[0:2])  # type: ignore
 
 
 def normalize(vector:Sequence[Any], dtype:Optional[type]=None) -> ArrayPoint:

@@ -3,6 +3,7 @@ import time
 from PIL import Image
 from rasterspace import RasterSpace
 import os
+import traceback
 
 class bcolors:
     HEADER = '\033[95m'
@@ -43,9 +44,11 @@ def main():
         else:
             try:
                 do_file(filename).show()
-            except:
+            except Exception as e:
                 print(f"{Tags.ERR} Unable to process file. Please try again, or use another filename.")
-        
+                traceback.print_exc()
+
+
 
 if __name__ == "__main__":
     main()
